@@ -1,14 +1,25 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import * as fs from "fs";
 
 type Mapping = {
   remote: string;
   local: string;
 };
 
+type MappingsConfiguration = Mapping[] | Record<string, string>;
+
 type Action = "open" | "reveal" | "copy";
 
+const output = vscode.window.createOutputChannel("Open Locally");
+
 export function activate(context: vscode.ExtensionContext) {
+  log("Extension activated.");
+  log(`Extension mode: ${context.extensionMode}`);
+  log(`Extension kind: ${context.extension?.extensionKind ?? "<unknown>"}`);
+  log(`VS Code remote name: ${vscode.env.remoteName ?? "<none>"}`);
+  log(`VS Code UI kind: ${vscode.env.uiKind}`);
+
   context.subscriptions.push(
     vscode.commands.registerCommand("openLocally.open", async (uri?: vscode.Uri) => {
       await handle(uri, "open");
@@ -18,20 +29,35 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand("openLocally.copyPath", async (uri?: vscode.Uri) => {
       await handle(uri, "copy");
+    }),
+    vscode.commands.registerCommand("openLocally.showLog", () => {
+      output.show();
     })
   );
 }
 
 async function handle(uri: vscode.Uri | undefined, action: Action): Promise<void> {
+  log(`Command started: ${action}`);
+
   if (!uri) {
+    log("No URI argument was provided.");
     vscode.window.showErrorMessage("Open Locally: no file or folder selected.");
     return;
   }
 
-  const mapped = mapRemoteToLocal(uri.fsPath);
+  log(`Source URI: ${uri.toString()}`);
+  log(`Source scheme: ${uri.scheme}`);
+  log(`Source path: ${uri.path}`);
+  log(`Source fsPath: ${uri.fsPath}`);
+
+  const remotePath = getRemotePath(uri);
+  const mapped = mapRemoteToLocal(remotePath);
+
+  log(`Remote path used for mapping: ${remotePath}`);
+  log(`Mapped local path: ${mapped ?? "<no match>"}`);
 
   if (!mapped) {
-    vscode.window.showErrorMessage(`Open Locally: no mapping matched ${uri.fsPath}`);
+    vscode.window.showErrorMessage(`Open Locally: no mapping matched ${remotePath}`);
     return;
   }
 
@@ -44,32 +70,63 @@ async function handle(uri: vscode.Uri | undefined, action: Action): Promise<void
   }
 
   const localUri = vscode.Uri.file(mapped);
+  log(`Local file URI: ${localUri.toString()}`);
 
   try {
     if (action === "open") {
+      log("Calling vscode.env.openExternal.");
       await vscode.env.openExternal(localUri);
     } else {
-      await vscode.commands.executeCommand("revealFileInOS", localUri);
+      await revealLocally(uri, mapped);
     }
+    log(`Command finished: ${action}`);
   } catch (error) {
+    log(`Command failed: ${formatError(error)}`);
     vscode.window.showErrorMessage(`Open Locally failed: ${String(error)}`);
   }
 }
 
-function mapRemoteToLocal(remotePathRaw: string): string | undefined {
-  const mappings = vscode.workspace
-    .getConfiguration("openLocally")
-    .get<Mapping[]>("mappings", []);
+async function revealLocally(sourceUri: vscode.Uri, localPath: string): Promise<void> {
+  const localExists = fs.existsSync(localPath);
+  const localStat = localExists ? fs.statSync(localPath) : undefined;
+  const isDirectory = localStat?.isDirectory() ?? await sourceIsDirectory(sourceUri) ?? false;
+  const directoryPath = isDirectory ? localPath : path.dirname(localPath);
+  const directoryUri = vscode.Uri.file(directoryPath);
 
-  if (!Array.isArray(mappings) || mappings.length === 0) {
+  log(`Local path exists: ${localExists}`);
+  log(`Local path is file: ${localStat?.isFile() ?? "<unknown>"}`);
+  log(`Local path is directory: ${localStat?.isDirectory() ?? "<unknown>"}`);
+  log(`Reveal opens directory path: ${directoryPath}`);
+  log(`Reveal directory URI: ${directoryUri.toString()}`);
+
+  log("Calling vscode.env.openExternal for reveal directory.");
+  await vscode.env.openExternal(directoryUri);
+}
+
+async function sourceIsDirectory(uri: vscode.Uri): Promise<boolean | undefined> {
+  try {
+    const stat = await vscode.workspace.fs.stat(uri);
+    return Boolean(stat.type & vscode.FileType.Directory);
+  } catch {
+    return undefined;
+  }
+}
+
+function mapRemoteToLocal(remotePathRaw: string): string | undefined {
+  const configurationValue = vscode.workspace
+    .getConfiguration("openLocally")
+    .get<MappingsConfiguration>("mappings", {});
+  const mappings = readMappings(configurationValue);
+
+  if (mappings.length === 0) {
     return undefined;
   }
 
-  const remotePath = normalizeSlashes(remotePathRaw);
+  const remotePath = trimTrailingSlash(normalizeSlashes(remotePathRaw));
 
   const sorted = [...mappings]
-    .filter((m) => m.remote && m.local)
-    .sort((a, b) => b.remote.length - a.remote.length);
+    .filter(isValidMapping)
+    .sort((a, b) => normalizedPrefixLength(b.remote) - normalizedPrefixLength(a.remote));
 
   for (const mapping of sorted) {
     const remotePrefix = trimTrailingSlash(normalizeSlashes(mapping.remote));
@@ -84,6 +141,42 @@ function mapRemoteToLocal(remotePathRaw: string): string | undefined {
   return undefined;
 }
 
+function readMappings(value: MappingsConfiguration): Mapping[] {
+  if (Array.isArray(value)) {
+    return value.filter(isValidMapping);
+  }
+
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+
+  return Object.entries(value).map(([remote, local]) => ({ remote, local }));
+}
+
+function getRemotePath(uri: vscode.Uri): string {
+  if (uri.scheme === "file") {
+    return uri.fsPath;
+  }
+
+  return uri.path;
+}
+
+function isValidMapping(value: unknown): value is Mapping {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const mapping = value as Partial<Mapping>;
+  return typeof mapping.remote === "string" &&
+    mapping.remote.trim().length > 0 &&
+    typeof mapping.local === "string" &&
+    mapping.local.trim().length > 0;
+}
+
+function normalizedPrefixLength(value: string): number {
+  return trimTrailingSlash(normalizeSlashes(value)).length;
+}
+
 function normalizeSlashes(value: string): string {
   return value.replace(/\\/g, "/");
 }
@@ -96,6 +189,18 @@ function showInfoMessages(): boolean {
   return vscode.workspace
     .getConfiguration("openLocally")
     .get<boolean>("showInfoMessages", true);
+}
+
+function log(message: string): void {
+  output.appendLine(`[${new Date().toISOString()}] ${message}`);
+}
+
+function formatError(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+
+  return String(error);
 }
 
 export function deactivate() {}

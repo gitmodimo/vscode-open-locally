@@ -7,13 +7,17 @@
   "engines": {
     "vscode": "^1.90.0"
   },
+  "extensionKind": [
+    "ui"
+  ],
   "categories": [
     "Other"
   ],
   "activationEvents": [
     "onCommand:openLocally.open",
     "onCommand:openLocally.reveal",
-    "onCommand:openLocally.copyPath"
+    "onCommand:openLocally.copyPath",
+    "onCommand:openLocally.showLog"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -32,52 +36,52 @@
         "command": "openLocally.copyPath",
         "title": "Copy Local Path",
         "category": "Open Locally"
+      },
+      {
+        "command": "openLocally.showLog",
+        "title": "Show Log",
+        "category": "Open Locally"
       }
     ],
     "menus": {
       "explorer/context": [
         {
           "command": "openLocally.open",
-          "group": "navigation@50"
+          "group": "navigation@50",
+          "when": "resourceScheme == file || resourceScheme == vscode-remote"
         },
         {
           "command": "openLocally.reveal",
-          "group": "navigation@51"
+          "group": "navigation@51",
+          "when": "resourceScheme == file || resourceScheme == vscode-remote"
         },
         {
           "command": "openLocally.copyPath",
-          "group": "navigation@52"
+          "group": "navigation@52",
+          "when": "resourceScheme == file || resourceScheme == vscode-remote"
         }
       ]
     },
     "configuration": {
       "title": "Open Locally",
+      "order": 10,
       "properties": {
         "openLocally.mappings": {
-          "type": "array",
-          "default": [],
-          "description": "Map remote/container path prefixes to local host path prefixes.",
-          "items": {
-            "type": "object",
-            "required": [
-              "remote",
-              "local"
-            ],
-            "properties": {
-              "remote": {
-                "type": "string",
-                "description": "Remote/container path prefix, for example /workspaces/project"
-              },
-              "local": {
-                "type": "string",
-                "description": "Local path prefix, for example Z:/project or //server/share/project"
-              }
-            }
-          }
+          "type": "object",
+          "default": {},
+          "scope": "resource",
+          "order": 10,
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Path mappings from remote or container prefixes to local host prefixes. Keys are remote prefixes, values are local host prefixes. The longest matching remote prefix is used.",
+          "markdownDescription": "Path mappings from remote or container prefixes to local host prefixes. Keys are remote prefixes, values are local host prefixes. The longest matching remote prefix is used.\n\nExample: key `/workspaces/project`, value `Z:/project`."
         },
         "openLocally.showInfoMessages": {
           "type": "boolean",
           "default": true,
+          "scope": "resource",
+          "order": 20,
           "description": "Show confirmation messages after copy/open actions."
         }
       }
@@ -93,7 +97,7 @@
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/vscode": "^1.90.0",
-    "typescript": "^5.4.5",
-    "@vscode/vsce": "^2.32.0"
+    "@vscode/vsce": "^2.32.0",
+    "typescript": "^5.4.5"
   }
 }

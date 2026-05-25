@@ -6,9 +6,20 @@ Open Locally adds Explorer right-click commands for VS Code Remote SSH / Dev Con
 
 Right-click a file or folder in VS Code Explorer and choose:
 
-- **Open Locally** — opens the mapped local path with the OS default app.
-- **Reveal Locally** — reveals the mapped local path in the OS file manager.
-- **Copy Local Path** — copies the mapped local path to the clipboard.
+- **Open Locally** - opens the mapped local path with the OS default app.
+- **Reveal Locally** - reveals the mapped local path in the OS file manager.
+- **Copy Local Path** - copies the mapped local path to the clipboard.
+
+## Settings
+
+Open VS Code Settings and search for `Open Locally`, then edit **Open Locally: Mappings**.
+
+Each mapping row has:
+
+- key: a remote, WSL, SSH, or Dev Container path prefix.
+- value: the matching local host path prefix.
+
+The longest matching `remote` prefix is used.
 
 ## Example
 
@@ -28,12 +39,9 @@ Settings:
 
 ```json
 {
-  "openLocally.mappings": [
-    {
-      "remote": "/workspaces/myproject",
-      "local": "Z:/myproject"
-    }
-  ]
+  "openLocally.mappings": {
+    "/workspaces/myproject": "Z:/myproject"
+  }
 }
 ```
 
