@@ -2,7 +2,7 @@
   "name": "open-locally",
   "displayName": "Open Locally",
   "description": "Open or reveal remote/dev-container files through configurable local path mappings.",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "publisher": "your-publisher-name",
   "engines": {
     "vscode": "^1.90.0"
