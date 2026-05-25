@@ -2,7 +2,7 @@
   "name": "open-locally",
   "displayName": "Open Locally",
   "description": "Open or reveal remote/dev-container files through configurable local path mappings.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "your-publisher-name",
   "license": "MIT",
   "repository": {
@@ -20,6 +20,7 @@
   ],
   "activationEvents": [
     "onCommand:openLocally.open",
+    "onCommand:openLocally.openWith",
     "onCommand:openLocally.reveal",
     "onCommand:openLocally.copyPath",
     "onCommand:openLocally.showLog"
@@ -30,6 +31,11 @@
       {
         "command": "openLocally.open",
         "title": "Open Locally",
+        "category": "Open Locally"
+      },
+      {
+        "command": "openLocally.openWith",
+        "title": "Open Locally With...",
         "category": "Open Locally"
       },
       {
@@ -56,13 +62,18 @@
           "when": "resourceScheme == file || resourceScheme == vscode-remote"
         },
         {
-          "command": "openLocally.reveal",
+          "command": "openLocally.openWith",
           "group": "navigation@51",
+          "when": "isWindows && (resourceScheme == file || resourceScheme == vscode-remote)"
+        },
+        {
+          "command": "openLocally.reveal",
+          "group": "navigation@52",
           "when": "resourceScheme == file || resourceScheme == vscode-remote"
         },
         {
           "command": "openLocally.copyPath",
-          "group": "navigation@52",
+          "group": "navigation@53",
           "when": "resourceScheme == file || resourceScheme == vscode-remote"
         }
       ]
