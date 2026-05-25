@@ -51,7 +51,7 @@ async function handle(uri: vscode.Uri | undefined, action: Action): Promise<void
   log(`Source fsPath: ${uri.fsPath}`);
 
   const remotePath = getRemotePath(uri);
-  const mapped = mapRemoteToLocal(remotePath);
+  const mapped = mapRemoteToLocal(remotePath) ?? getUnmappedLocalPath(uri);
 
   log(`Remote path used for mapping: ${remotePath}`);
   log(`Mapped local path: ${mapped ?? "<no match>"}`);
@@ -159,6 +159,15 @@ function getRemotePath(uri: vscode.Uri): string {
   }
 
   return uri.path;
+}
+
+function getUnmappedLocalPath(uri: vscode.Uri): string | undefined {
+  if (uri.scheme !== "file") {
+    return undefined;
+  }
+
+  log("No mapping matched; using selected local file path.");
+  return uri.fsPath;
 }
 
 function isValidMapping(value: unknown): value is Mapping {
