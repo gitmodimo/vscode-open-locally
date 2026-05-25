@@ -4,6 +4,11 @@
   "description": "Open or reveal remote/dev-container files through configurable local path mappings.",
   "version": "1.0.0",
   "publisher": "your-publisher-name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gitmodimo/vscode-open-locally.git"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
